@@ -63,7 +63,7 @@ public class ExecutionStateTest {
             debugHandler.release();
             v8.release();
             if (V8.getActiveRuntimes() != 0) {
-                throw new IllegalStateException("V8Runtimes not properly released.");
+                throw new IllegalStateException("V8Runtimes not properly released");
             }
         } catch (IllegalStateException e) {
             System.out.println(e.getMessage());
@@ -77,7 +77,7 @@ public class ExecutionStateTest {
             @Override
             public Object answer(final InvocationOnMock invocation) throws Throwable {
                 ExecutionState state = (ExecutionState) invocation.getArguments()[1];
-                state.prepareState(StepAction.STEP_NEXT);
+                state.prepareStep(StepAction.STEP_NEXT);
                 return null;
             }
 
@@ -95,7 +95,7 @@ public class ExecutionStateTest {
             @Override
             public Object answer(final InvocationOnMock invocation) throws Throwable {
                 ExecutionState state = (ExecutionState) invocation.getArguments()[1];
-                state.prepareState(StepAction.STEP_OUT);
+                state.prepareStep(StepAction.STEP_OUT);
                 return null;
             }
 
@@ -113,7 +113,7 @@ public class ExecutionStateTest {
             @Override
             public Object answer(final InvocationOnMock invocation) throws Throwable {
                 ExecutionState state = (ExecutionState) invocation.getArguments()[1];
-                state.prepareState(StepAction.STEP_IN);
+                state.prepareStep(StepAction.STEP_IN);
                 return null;
             }
 

@@ -34,10 +34,14 @@ public class V8Object extends V8Value {
      * @param v8 The runtime on which to associate the V8Object.
      */
     public V8Object(final V8 v8) {
+        this(v8, null);
+    }
+
+    protected V8Object(final V8 v8, final Object data) {
         super(v8);
         if (v8 != null) {
             this.v8.checkThread();
-            objectHandle = initialize(this.v8.getV8RuntimePtr());
+            initialize(this.v8.getV8RuntimePtr(), data);
         }
     }
 
@@ -68,7 +72,7 @@ public class V8Object extends V8Value {
      */
     public boolean contains(final String key) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.contains(v8.getV8RuntimePtr(), objectHandle, key);
     }
 
@@ -80,7 +84,7 @@ public class V8Object extends V8Value {
      */
     public String[] getKeys() {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.getKeys(v8.getV8RuntimePtr(), objectHandle);
     }
 
@@ -95,7 +99,7 @@ public class V8Object extends V8Value {
      */
     public int getType(final String key) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.getType(v8.getV8RuntimePtr(), objectHandle, key);
     }
 
@@ -109,25 +113,9 @@ public class V8Object extends V8Value {
      * @return The value associated with this key.
      */
     public Object get(final String key) {
-        int type = getType(key);
-        switch (type) {
-            case NULL:
-                return null;
-            case INTEGER:
-                return getInteger(key);
-            case DOUBLE:
-                return getDouble(key);
-            case BOOLEAN:
-                return getBoolean(key);
-            case STRING:
-                return getString(key);
-            case V8_ARRAY:
-                return getArray(key);
-            case V8_FUNCTION:
-            case V8_OBJECT:
-                return getObject(key);
-        }
-        return V8.getUndefined();
+        v8.checkThread();
+        checkReleased();
+        return v8.get(v8.getV8RuntimePtr(), V8_OBJECT, objectHandle, key);
     }
 
     /**
@@ -142,7 +130,7 @@ public class V8Object extends V8Value {
      */
     public int getInteger(final String key) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.getInteger(v8.getV8RuntimePtr(), objectHandle, key);
     }
 
@@ -158,7 +146,7 @@ public class V8Object extends V8Value {
      */
     public boolean getBoolean(final String key) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.getBoolean(v8.getV8RuntimePtr(), objectHandle, key);
     }
 
@@ -174,7 +162,7 @@ public class V8Object extends V8Value {
      */
     public double getDouble(final String key) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.getDouble(v8.getV8RuntimePtr(), objectHandle, key);
     }
 
@@ -190,7 +178,7 @@ public class V8Object extends V8Value {
      */
     public String getString(final String key) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.getString(v8.getV8RuntimePtr(), objectHandle, key);
     }
 
@@ -206,7 +194,7 @@ public class V8Object extends V8Value {
      */
     public V8Array getArray(final String key) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         Object result = v8.get(v8.getV8RuntimePtr(), V8_ARRAY, objectHandle, key);
         if ((result == null) || (result instanceof V8Array)) {
             return (V8Array) result;
@@ -226,7 +214,7 @@ public class V8Object extends V8Value {
      */
     public V8Object getObject(final String key) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         Object result = v8.get(v8.getV8RuntimePtr(), V8_OBJECT, objectHandle, key);
         if ((result == null) || (result instanceof V8Object)) {
             return (V8Object) result;
@@ -247,7 +235,7 @@ public class V8Object extends V8Value {
      */
     public int executeIntegerFunction(final String name, final V8Array parameters) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         long parametersHandle = parameters == null ? 0 : parameters.getHandle();
         return v8.executeIntegerFunction(v8.getV8RuntimePtr(), getHandle(), name, parametersHandle);
     }
@@ -265,7 +253,7 @@ public class V8Object extends V8Value {
      */
     public double executeDoubleFunction(final String name, final V8Array parameters) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         long parametersHandle = parameters == null ? 0 : parameters.getHandle();
         return v8.executeDoubleFunction(v8.getV8RuntimePtr(), getHandle(), name, parametersHandle);
     }
@@ -283,7 +271,7 @@ public class V8Object extends V8Value {
      */
     public String executeStringFunction(final String name, final V8Array parameters) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         long parametersHandle = parameters == null ? 0 : parameters.getHandle();
         return v8.executeStringFunction(v8.getV8RuntimePtr(), getHandle(), name, parametersHandle);
     }
@@ -301,7 +289,7 @@ public class V8Object extends V8Value {
      */
     public boolean executeBooleanFunction(final String name, final V8Array parameters) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         long parametersHandle = parameters == null ? 0 : parameters.getHandle();
         return v8.executeBooleanFunction(v8.getV8RuntimePtr(), getHandle(), name, parametersHandle);
     }
@@ -319,7 +307,7 @@ public class V8Object extends V8Value {
      */
     public V8Array executeArrayFunction(final String name, final V8Array parameters) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         long parametersHandle = parameters == null ? 0 : parameters.getHandle();
         Object result = v8.executeFunction(v8.getV8RuntimePtr(), V8_ARRAY, objectHandle, name, parametersHandle);
         if (result instanceof V8Array) {
@@ -341,7 +329,7 @@ public class V8Object extends V8Value {
      */
     public V8Object executeObjectFunction(final String name, final V8Array parameters) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         long parametersHandle = parameters == null ? 0 : parameters.getHandle();
         Object result = v8.executeFunction(v8.getV8RuntimePtr(), V8_OBJECT, objectHandle, name, parametersHandle);
         if (result instanceof V8Object) {
@@ -361,9 +349,59 @@ public class V8Object extends V8Value {
      */
     public Object executeFunction(final String name, final V8Array parameters) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         long parametersHandle = parameters == null ? 0 : parameters.getHandle();
         return v8.executeFunction(v8.getV8RuntimePtr(), UNKNOWN, objectHandle, name, parametersHandle);
+    }
+
+    /**
+     * Invoke a JavaScript function and return the result as a Java Object.
+     *
+     * @param name The name of the JS Function to call
+     * @return The result of this JS Function
+     */
+    public Object executeJSFunction(final String name) {
+        return executeFunction(name, null);
+    }
+
+    /**
+     * Invoke a JavaScript function and return the result as a Java Object.
+     *
+     * @param name The name of the JS Function to call.
+     * @param parameters The parameters to pass to the function.
+     * @return A Java Object representing the result of the function call.
+     */
+    public Object executeJSFunction(final String name, final Object... parameters) {
+        if (parameters == null) {
+            return executeFunction(name, null);
+        }
+        V8Array parameterArray = new V8Array(v8.getRuntime());
+        try {
+            for (Object object : parameters) {
+                if (object == null) {
+                    parameterArray.pushNull();
+                } else if (object instanceof V8Value) {
+                    parameterArray.push((V8Value) object);
+                } else if (object instanceof Integer) {
+                    parameterArray.push((Integer) object);
+                } else if (object instanceof Double) {
+                    parameterArray.push((Double) object);
+                } else if (object instanceof Long) {
+                    parameterArray.push(((Long) object).doubleValue());
+                } else if (object instanceof Float) {
+                    parameterArray.push(((Float) object).floatValue());
+                } else if (object instanceof Boolean) {
+                    parameterArray.push((Boolean) object);
+                } else if (object instanceof String) {
+                    parameterArray.push((String) object);
+                } else {
+                    throw new IllegalArgumentException("Unsupported Object of type: " + object.getClass());
+                }
+            }
+            return executeFunction(name, parameterArray);
+        } finally {
+            parameterArray.release();
+        }
     }
 
     /**
@@ -375,7 +413,7 @@ public class V8Object extends V8Value {
      */
     public void executeVoidFunction(final String name, final V8Array parameters) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         long parametersHandle = parameters == null ? 0 : parameters.getHandle();
         v8.executeVoidFunction(v8.getV8RuntimePtr(), objectHandle, name, parametersHandle);
     }
@@ -390,7 +428,7 @@ public class V8Object extends V8Value {
      */
     public V8Object add(final String key, final int value) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.add(v8.getV8RuntimePtr(), objectHandle, key, value);
         return this;
     }
@@ -405,7 +443,7 @@ public class V8Object extends V8Value {
      */
     public V8Object add(final String key, final boolean value) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.add(v8.getV8RuntimePtr(), objectHandle, key, value);
         return this;
     }
@@ -420,7 +458,7 @@ public class V8Object extends V8Value {
      */
     public V8Object add(final String key, final double value) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.add(v8.getV8RuntimePtr(), objectHandle, key, value);
         return this;
     }
@@ -435,7 +473,7 @@ public class V8Object extends V8Value {
      */
     public V8Object add(final String key, final String value) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         if (value == null) {
             v8.addNull(v8.getV8RuntimePtr(), objectHandle, key);
         } else if (value.equals(V8.getUndefined())) {
@@ -456,7 +494,7 @@ public class V8Object extends V8Value {
      */
     public V8Object add(final String key, final V8Value value) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         if (value == null) {
             v8.addNull(v8.getV8RuntimePtr(), objectHandle, key);
         } else if (value.equals(V8.getUndefined())) {
@@ -476,7 +514,7 @@ public class V8Object extends V8Value {
      */
     public V8Object addUndefined(final String key) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.addUndefined(v8.getV8RuntimePtr(), objectHandle, key);
         return this;
     }
@@ -490,7 +528,7 @@ public class V8Object extends V8Value {
      */
     public V8Object addNull(final String key) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.addNull(v8.getV8RuntimePtr(), objectHandle, key);
         return this;
     }
@@ -504,7 +542,7 @@ public class V8Object extends V8Value {
      */
     public V8Object setPrototype(final V8Object value) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.setPrototype(v8.getV8RuntimePtr(), objectHandle, value.getHandle());
         return this;
     }
@@ -520,7 +558,7 @@ public class V8Object extends V8Value {
      */
     public V8Object registerJavaMethod(final JavaCallback callback, final String jsFunctionName) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.registerCallback(callback, getHandle(), jsFunctionName);
         return this;
     }
@@ -536,7 +574,7 @@ public class V8Object extends V8Value {
      */
     public V8Object registerJavaMethod(final JavaVoidCallback callback, final String jsFunctionName) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.registerVoidCallback(callback, getHandle(), jsFunctionName);
         return this;
     }
@@ -572,7 +610,7 @@ public class V8Object extends V8Value {
      */
     public V8Object registerJavaMethod(final Object object, final String methodName, final String jsFunctionName, final Class<?>[] parameterTypes, final boolean includeReceiver) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         try {
             Method method = object.getClass().getMethod(methodName, parameterTypes);
             method.setAccessible(true);
@@ -592,8 +630,8 @@ public class V8Object extends V8Value {
     @Override
     public String toString() {
         v8.checkThread();
-        checkReleaesd();
-        return executeStringFunction("toString", null);
+        checkReleased();
+        return v8.toString(v8.getV8RuntimePtr(), getHandle());
     }
 
     static class Undefined extends V8Object {
@@ -699,6 +737,24 @@ public class V8Object extends V8Value {
          */
         @Override
         public V8Object add(final String key, final int value) {
+            throw new UnsupportedOperationException();
+        }
+
+        /*
+         * (non-Javadoc)
+         * @see com.eclipsesource.v8.V8Object#executeJSFunction(java.lang.String, java.lang.Object[])
+         */
+        @Override
+        public Object executeJSFunction(final String name, final Object... parameters) {
+            throw new UnsupportedOperationException();
+        }
+
+        /*
+         * (non-Javadoc)
+         * @see com.eclipsesource.v8.V8Object#executeFunction(java.lang.String, com.eclipsesource.v8.V8Array)
+         */
+        @Override
+        public Object executeFunction(final String name, final V8Array parameters) {
             throw new UnsupportedOperationException();
         }
 

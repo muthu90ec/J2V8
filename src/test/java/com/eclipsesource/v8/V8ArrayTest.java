@@ -44,7 +44,7 @@ public class V8ArrayTest {
         try {
             v8.release();
             if (V8.getActiveRuntimes() != 0) {
-                throw new IllegalStateException("V8Runtimes not properly released.");
+                throw new IllegalStateException("V8Runtimes not properly released");
             }
         } catch (IllegalStateException e) {
             System.out.println(e.getMessage());
@@ -166,6 +166,27 @@ public class V8ArrayTest {
         V8Array undefined = v8.getArray("object");
 
         undefined.release();
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testGetByteUndefined() {
+        V8Array undefined = v8.getArray("array");
+
+        undefined.getByte(7);
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testGetBytesUndefined() {
+        V8Array undefined = v8.getArray("array");
+
+        undefined.getBytes(0, 10);
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testGetBytesUndefined2() {
+        V8Array undefined = v8.getArray("array");
+
+        undefined.getBytes(0, 10, new byte[10]);
     }
 
     @Test(expected = UnsupportedOperationException.class)
@@ -703,6 +724,27 @@ public class V8ArrayTest {
         array.release();
     }
 
+    /*** Get Byte ***/
+    @Test
+    public void testGetIntegerAsByte() {
+        V8Array array = v8.executeArrayScript("foo = [3]");
+
+        byte result = array.getByte(0);
+
+        assertEquals(3, result);
+        array.release();
+    }
+
+    @Test
+    public void testGetIntegerAsByte_Overflow() {
+        V8Array array = v8.executeArrayScript("foo = [256]");
+
+        byte result = array.getByte(0);
+
+        assertEquals(0, result);
+        array.release();
+    }
+
     /*** Get Int ***/
     @Test
     public void testArrayGetInt() {
@@ -854,6 +896,27 @@ public class V8ArrayTest {
         assertEquals("first", array.getString(0));
         assertEquals("second", array.getString(1));
         assertEquals("third", array.getString(2));
+        array.release();
+    }
+
+    @Test
+    public void testArrayGetString_Unicode() {
+        V8Array array = v8.executeArrayScript("['🎉','🌞','💐'];");
+
+        assertEquals("🎉", array.getString(0));
+        assertEquals("🌞", array.getString(1));
+        assertEquals("💐", array.getString(2));
+        array.release();
+    }
+
+    @Test
+    public void testArrayGetStrings_Unicode() {
+        V8Array array = v8.executeArrayScript("['🎉','🌞','💐'];");
+
+        String[] result = array.getStrings(0, 3);
+        assertEquals("🎉", result[0]);
+        assertEquals("🌞", result[1]);
+        assertEquals("💐", result[2]);
         array.release();
     }
 
@@ -1607,6 +1670,21 @@ public class V8ArrayTest {
     }
 
     @Test
+    public void testGetArrayOfBytes() {
+        V8Array a = v8.executeArrayScript("[0, 1, 2, 3, 256];");
+
+        byte[] result = a.getBytes(0, 5);
+
+        assertEquals(5, result.length);
+        assertEquals(0, result[0]);
+        assertEquals(1, result[1]);
+        assertEquals(2, result[2]);
+        assertEquals(3, result[3]);
+        assertEquals(0, result[4]);
+        a.release();
+    }
+
+    @Test
     public void testGetSubArrayOfBooleans() {
         V8Array a = v8.executeArrayScript("[true, false, true, true, false];");
 
@@ -1968,11 +2046,33 @@ public class V8ArrayTest {
     }
 
     @Test
+    public void testGetBytesSameSizeArray() {
+        V8Array a = v8.executeArrayScript("[0, 1, 2, 3]");
+        byte[] result = new byte[4];
+
+        int size = a.getBytes(0, 4, result);
+
+        assertEquals(4, size);
+        a.release();
+    }
+
+    @Test
     public void testGetBooleanBiggerArray() {
         V8Array a = v8.executeArrayScript("[false, false, false, true]");
         boolean[] result = new boolean[40];
 
         int size = a.getBooleans(0, 4, result);
+
+        assertEquals(4, size);
+        a.release();
+    }
+
+    @Test
+    public void testGetBytesBiggerArray() {
+        V8Array a = v8.executeArrayScript("[0, 1, 2, 3]");
+        byte[] result = new byte[40];
+
+        int size = a.getBytes(0, 4, result);
 
         assertEquals(4, size);
         a.release();
@@ -1990,6 +2090,18 @@ public class V8ArrayTest {
         }
     }
 
+    @Test(expected = IndexOutOfBoundsException.class)
+    public void testGetBytesSmallerArray() {
+        V8Array a = v8.executeArrayScript("[0, 1, 2, 3]");
+        byte[] result = new byte[3];
+
+        try {
+            a.getBytes(0, 4, result);
+        } finally {
+            a.release();
+        }
+    }
+
     @Test
     public void testGetBooleanPopulatesArray() {
         V8Array a = v8.executeArrayScript("[true, false, false, true]");
@@ -2001,6 +2113,20 @@ public class V8ArrayTest {
         assertFalse(result[1]);
         assertFalse(result[2]);
         assertTrue(result[3]);
+        a.release();
+    }
+
+    @Test
+    public void testGetBytesPopulatesArray() {
+        V8Array a = v8.executeArrayScript("[0, 1, 2, 256]");
+        byte[] result = new byte[4];
+
+        a.getBytes(0, 4, result);
+
+        assertEquals(0, result[0]);
+        assertEquals(1, result[1]);
+        assertEquals(2, result[2]);
+        assertEquals(0, result[3]);
         a.release();
     }
 

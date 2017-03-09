@@ -27,7 +27,9 @@ import com.eclipsesource.v8.V8;
 import com.eclipsesource.v8.V8Object;
 import com.eclipsesource.v8.debug.DebugHandler.DebugEvent;
 import com.eclipsesource.v8.debug.mirror.Frame;
+import com.eclipsesource.v8.debug.mirror.FunctionMirror;
 import com.eclipsesource.v8.debug.mirror.Scope;
+import com.eclipsesource.v8.debug.mirror.SourceLocation;
 import com.eclipsesource.v8.debug.mirror.ValueMirror;
 
 public class FrameTest {
@@ -60,11 +62,48 @@ public class FrameTest {
             debugHandler.release();
             v8.release();
             if (V8.getActiveRuntimes() != 0) {
-                throw new IllegalStateException("V8Runtimes not properly released.");
+                throw new IllegalStateException("V8Runtimes not properly released");
             }
         } catch (IllegalStateException e) {
             System.out.println(e.getMessage());
         }
+    }
+
+    @Test
+    public void testGetFunctionMirror() {
+        handleBreak(new BreakHandler() {
+
+            @Override
+            public void onBreak(final DebugEvent event, final ExecutionState state, final EventData eventData, final V8Object data) {
+                Frame frame = state.getFrame(0);
+                result = frame.getFunction();
+                frame.release();
+            }
+        });
+
+        v8.executeScript(script, "script", 0);
+
+        assertEquals("foo", ((FunctionMirror) result).getName());
+        ((FunctionMirror) result).release();
+    }
+
+    @Test
+    public void testGetSourceLocation() {
+        handleBreak(new BreakHandler() {
+
+            @Override
+            public void onBreak(final DebugEvent event, final ExecutionState state, final EventData eventData, final V8Object data) {
+                Frame frame = state.getFrame(0);
+                result = frame.getSourceLocation();
+                frame.release();
+            }
+        });
+
+        v8.executeScript(script, "script", 0);
+
+        assertEquals(5, ((SourceLocation) result).getLine());
+        assertEquals("script", ((SourceLocation) result).getScriptName());
+        assertEquals(0, ((SourceLocation) result).getColumn());
     }
 
     @Test
@@ -115,7 +154,7 @@ public class FrameTest {
 
         v8.executeScript(script, "script", 0);
 
-        assertEquals(2, result);
+        assertEquals(3, result);
     }
 
     @Test

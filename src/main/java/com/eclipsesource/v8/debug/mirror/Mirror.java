@@ -44,6 +44,7 @@ public class Mirror implements Releasable {
     private static final String IS_NULL      = "isNull";
     private static final String IS_STRING    = "isString";
     private static final String IS_ARRAY     = "isArray";
+    private static final String IS_FUNCTION  = "isFunction";
     private static final String IS_BOOLEAN   = "isBoolean";
     private static final String IS_NUMBER    = "isNumber";
     private static final String IS_OBJECT    = "isObject";
@@ -195,6 +196,14 @@ public class Mirror implements Releasable {
         }
     }
 
+    private static boolean isFunction(final V8Object mirror) {
+        try {
+            return mirror.executeBooleanFunction(IS_FUNCTION, null);
+        } catch (V8ResultUndefined e) {
+            return false;
+        }
+    }
+
     private static boolean isArray(final V8Object mirror) {
         try {
             return mirror.executeBooleanFunction(IS_ARRAY, null);
@@ -228,27 +237,44 @@ public class Mirror implements Releasable {
     }
 
     protected static ValueMirror createMirror(final V8Object mirror) {
-        if (isUndefined(mirror)) {
-            return new UndefinedMirror(mirror);
-        }
         if (isNull(mirror)) {
             return new NullMirror(mirror);
-        }
-        if (isArray(mirror)) {
+        } else if (isUndefined(mirror)) {
+            return new UndefinedMirror(mirror);
+        } else if (isFunction(mirror)) {
+            return new FunctionMirror(mirror);
+        } else if (isArray(mirror)) {
             return new ArrayMirror(mirror);
-        }
-        if (isObject(mirror)) {
+        } else if (isObject(mirror)) {
             return new ObjectMirror(mirror);
-        }
-        if (isString(mirror)) {
+        } else if (isString(mirror)) {
             return new StringMirror(mirror);
-        }
-        if (isNumber(mirror)) {
+        } else if (isNumber(mirror)) {
             return new NumberMirror(mirror);
-        }
-        if (isBoolean(mirror)) {
+        } else if (isBoolean(mirror)) {
             return new BooleanMirror(mirror);
         }
         return new ValueMirror(mirror);
+    }
+
+    @Override
+    public String toString() {
+        return v8Object.toString();
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (!(obj instanceof Mirror)) {
+            return false;
+        }
+        return v8Object.equals(((Mirror) obj).v8Object);
+    }
+
+    @Override
+    public int hashCode() {
+        return v8Object.hashCode();
     }
 }

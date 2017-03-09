@@ -6,6 +6,52 @@ J2V8
 
 J2V8 is a set of Java bindings for V8. J2V8 focuses on performance and tight integration with V8. It also takes a 'primitive first' approach, meaning that if a value can be accessed as a primitive, then it should be. This forces a more static type system between the JS and Java code, but it also improves the performance since intermediate Objects are not created.
 
+We developed J2V8 as a high performance engine for our multi-platform mobile toolkit [tabris.js](https://tabrisjs.com) and it is a great choice for executing JavaScript on Android devices.
+
+Building J2V8
+=============
+Building J2V8 requires building both the native parts and the Java library (.jar file). To build the native parts we first build node.js as a library and then statically link J2V8 to that. The Java parts are built with maven.
+
+Building on MacOS
+-----------------
+```
+ sh ./build-node.sh
+ sh ./buildJ2V8_macos.sh
+ mvn clean verify
+```
+
+Building on Linux
+-----------------
+```
+export CCFLAGS="${CCFLAGS} -fPIC" 
+export CXXFLAGS="${CXXFLAGS} -fPIC" 
+export CPPFLAGS="${CPPFLAGS} -fPIC" 
+#sh ./build-node.sh
+cp -r /data/jenkins/node .
+cd jni
+g++ -I../node -I../node/deps/v8 -I../node/deps/v8/include \
+    -I../node/src -I /data/jenkins/tools/hudson.model.JDK/jdk-7/include/ \
+    -I /data/jenkins/tools/hudson.model.JDK/jdk-7/include/linux  \
+    com_eclipsesource_v8_V8Impl.cpp -std=c++11 -fPIC -shared -o libj2v8_linux_x86_64.so \
+    -Wl,--whole-archive ../node/out/Release/libnode.a  -Wl,--no-whole-archive \
+    -Wl,--start-group \
+                      ../node/out/Release/libv8_libbase.a \
+                      ../node/out/Release/libv8_libplatform.a \
+                      ../node/out/Release/libv8_base.a \
+                      ../node/out/Release/libv8_nosnapshot.a \
+                      ../node/out/Release/libuv.a \
+                      ../node/out/Release/libopenssl.a \
+                      ../node/out/Release/libhttp_parser.a \
+                      ../node/out/Release/libgtest.a \
+                      ../node/out/Release/libzlib.a \
+                      ../node/out/Release/libcares.a \
+    -Wl,--end-group \
+    -lrt -D NODE_COMPATIBLE=1
+mvn clean verify
+```
+
+This will build J2V8 with node.js support. To disable this support, remove the `-D NODE_COMPATIBLE=1` option.
+
 Tutorials
 ==========
  * [Getting Started With J2V8](http://eclipsesource.com/blogs/getting-started-with-j2v8/)
@@ -16,6 +62,8 @@ Tutorials
 
 Articles
 ========
+ * [Announcing J2V8 4](http://eclipsesource.com/blogs/2016/07/20/announcing-j2v8-4/)
+ * [Running Node.js on the JVM](http://eclipsesource.com/blogs/2016/07/20/running-node-js-on-the-jvm/)
  * [Shipping J2V8 as an AAR](http://eclipsesource.com/blogs/2015/11/04/shipping-j2v8-as-an-aar/)
  * [Announcing J2V8 3.0](http://eclipsesource.com/blogs/2015/07/08/j2v8-3-0-released/)
  * [J2V8 2.2 New and Noteworthy](http://eclipsesource.com/blogs/2015/04/23/j2v8-2-2-new-and-noteworthy/)
@@ -25,7 +73,7 @@ Articles
 Presentations
 =============
  * [J2V8 A Highly Efficient JS Runtime For Java](https://www.eclipsecon.org/na2015/session/j2v8-highly-efficient-js-runtime-java)
- * [Running Java Efficiently in a Java World](http://www.slideshare.net/irbull/enter-js)
+ * [Running JavaScript Efficiently in a Java World](http://www.slideshare.net/irbull/enter-js)
 
 Other Resources
 ===============
@@ -37,7 +85,8 @@ Who is using J2V8?
 Here are some projects that use J2V8:
 * [tabris.js](https://tabrisjs.com)
 * [tern.java](https://github.com/angelozerr/tern.java)
-
+* [PlantUML](http://plantuml.com/)
+* [jooby](http://jooby.org/doc/assets)
 
 License
 =====

@@ -33,6 +33,10 @@ public class V8Array extends V8Object {
         v8.checkThread();
     }
 
+    protected V8Array(final V8 v8, final Object data) {
+        super(v8, data);
+    }
+
     @Override
     protected V8Value createTwin() {
         return new V8Array(v8);
@@ -48,11 +52,10 @@ public class V8Array extends V8Object {
     }
 
     @Override
-    protected long initialize(final long runtimePtr) {
+    protected void initialize(final long runtimePtr, final Object data) {
         long handle = v8.initNewV8Array(runtimePtr);
-        v8.addObjRef();
         released = false;
-        return handle;
+        addObjectReference(handle);
     }
 
     /**
@@ -62,7 +65,7 @@ public class V8Array extends V8Object {
      */
     public int length() {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.arrayGetSize(v8.getV8RuntimePtr(), getHandle());
     }
 
@@ -75,7 +78,7 @@ public class V8Array extends V8Object {
      */
     public int getType(final int index) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.getType(v8.getV8RuntimePtr(), getHandle(), index);
     }
 
@@ -88,7 +91,7 @@ public class V8Array extends V8Object {
      */
     public int getType() {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.getArrayType(v8.getV8RuntimePtr(), getHandle());
     }
 
@@ -105,7 +108,7 @@ public class V8Array extends V8Object {
      */
     public int getType(final int index, final int length) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.getType(v8.getV8RuntimePtr(), getHandle(), index, length);
     }
 
@@ -121,7 +124,7 @@ public class V8Array extends V8Object {
      */
     public int getInteger(final int index) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.arrayGetInteger(v8.getV8RuntimePtr(), getHandle(), index);
     }
 
@@ -137,8 +140,23 @@ public class V8Array extends V8Object {
      */
     public boolean getBoolean(final int index) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.arrayGetBoolean(v8.getV8RuntimePtr(), getHandle(), index);
+    }
+
+    /**
+     * Returns the byte value associated at this index. If the value at
+     * this index does not exist, or cannot be cast to a byte, then
+     * V8ResultUndefined exception is thrown.
+     *
+     * @param index The index whose value to return
+     * @return The byte value at this index or V8ResultUndefined
+     * if the index does not exist or the value cannot be cast to a byte.
+     */
+    public byte getByte(final int index) {
+        v8.checkThread();
+        checkReleased();
+        return v8.arrayGetByte(v8.getV8RuntimePtr(), getHandle(), index);
     }
 
     /**
@@ -153,7 +171,7 @@ public class V8Array extends V8Object {
      */
     public double getDouble(final int index) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.arrayGetDouble(v8.getV8RuntimePtr(), getHandle(), index);
     }
 
@@ -169,7 +187,7 @@ public class V8Array extends V8Object {
      */
     public String getString(final int index) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.arrayGetString(v8.getV8RuntimePtr(), getHandle(), index);
     }
 
@@ -187,7 +205,7 @@ public class V8Array extends V8Object {
      */
     public int[] getIntegers(final int index, final int length) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.arrayGetIntegers(v8.getV8RuntimePtr(), getHandle(), index, length);
     }
 
@@ -206,7 +224,7 @@ public class V8Array extends V8Object {
      */
     public int getIntegers(final int index, final int length, final int[] resultArray) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         if (length > resultArray.length) {
             throw new IndexOutOfBoundsException();
         }
@@ -227,7 +245,7 @@ public class V8Array extends V8Object {
      */
     public double[] getDoubles(final int index, final int length) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.arrayGetDoubles(v8.getV8RuntimePtr(), getHandle(), index, length);
     }
 
@@ -246,7 +264,7 @@ public class V8Array extends V8Object {
      */
     public int getDoubles(final int index, final int length, final double[] resultArray) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         if (length > resultArray.length) {
             throw new IndexOutOfBoundsException();
         }
@@ -267,8 +285,26 @@ public class V8Array extends V8Object {
      */
     public boolean[] getBooleans(final int index, final int length) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.arrayGetBooleans(v8.getV8RuntimePtr(), getHandle(), index, length);
+    }
+
+    /**
+     * Returns the bytes contained in a subset of a V8Array. If the subset
+     * contains elements that cannot be cast to bytes, then a V8ResultUndefined exception
+     * is thrown. Furthermore, if the subset is not entirely contained within the array,
+     * then V8ResultUndefined exception is also thrown.
+     *
+     * @param index The starting index.
+     * @param length The length.
+     *
+     * @return The bytes contained in the subset of the array, or V8ResultUndefined
+     * exception.
+     */
+    public byte[] getBytes(final int index, final int length) {
+        v8.checkThread();
+        checkReleased();
+        return v8.arrayGetBytes(v8.getV8RuntimePtr(), getHandle(), index, length);
     }
 
     /**
@@ -286,11 +322,33 @@ public class V8Array extends V8Object {
      */
     public int getBooleans(final int index, final int length, final boolean[] resultArray) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         if (length > resultArray.length) {
             throw new IndexOutOfBoundsException();
         }
         return v8.arrayGetBooleans(v8.getV8RuntimePtr(), getHandle(), index, length, resultArray);
+    }
+
+    /**
+     * Gets the bytes contained in a subset of a V8Array. If the subset
+     * contains elements that cannot be cast to bytes, then a V8ResultUndefined exception
+     * is thrown. Furthermore, if the subset is not entirely contained within the array,
+     * then V8ResultUndefined exception is also thrown. Finally, if the resultArray
+     * is not large enough to hold the results then IndexOutOfBoundsException is thrown.
+     *
+     * @param index The starting index.
+     * @param length The length.
+     * @param resultArray The array to put the results in.
+     *
+     * @return The number of elements added to the array.
+     */
+    public int getBytes(final int index, final int length, final byte[] resultArray) {
+        v8.checkThread();
+        checkReleased();
+        if (length > resultArray.length) {
+            throw new IndexOutOfBoundsException();
+        }
+        return v8.arrayGetBytes(v8.getV8RuntimePtr(), getHandle(), index, length, resultArray);
     }
 
     /**
@@ -307,7 +365,7 @@ public class V8Array extends V8Object {
      */
     public String[] getStrings(final int index, final int length) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         return v8.arrayGetStrings(v8.getV8RuntimePtr(), getHandle(), index, length);
     }
 
@@ -326,7 +384,7 @@ public class V8Array extends V8Object {
      */
     public int getStrings(final int index, final int length, final String[] resultArray) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         if (length > resultArray.length) {
             throw new IndexOutOfBoundsException();
         }
@@ -341,25 +399,9 @@ public class V8Array extends V8Object {
      * @return The value at the given index.
      */
     public Object get(final int index) {
-        int type = getType(index);
-        switch (type) {
-            case NULL:
-                return null;
-            case INTEGER:
-                return getInteger(index);
-            case DOUBLE:
-                return getDouble(index);
-            case BOOLEAN:
-                return getBoolean(index);
-            case STRING:
-                return getString(index);
-            case V8_ARRAY:
-                return getArray(index);
-            case V8_FUNCTION:
-            case V8_OBJECT:
-                return getObject(index);
-        }
-        return V8.getUndefined();
+        v8.checkThread();
+        checkReleased();
+        return v8.arrayGet(v8.getV8RuntimePtr(), V8_OBJECT, objectHandle, index);
     }
 
     /**
@@ -374,7 +416,7 @@ public class V8Array extends V8Object {
      */
     public V8Array getArray(final int index) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         Object result = v8.arrayGet(v8.getV8RuntimePtr(), V8_ARRAY, objectHandle, index);
         if ((result == null) || (result instanceof V8Array)) {
             return (V8Array) result;
@@ -394,7 +436,7 @@ public class V8Array extends V8Object {
      */
     public V8Object getObject(final int index) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         Object result = v8.arrayGet(v8.getV8RuntimePtr(), V8_OBJECT, objectHandle, index);
         if ((result == null) || (result instanceof V8Object)) {
             return (V8Object) result;
@@ -412,7 +454,7 @@ public class V8Array extends V8Object {
      */
     public V8Array push(final int value) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.addArrayIntItem(v8.getV8RuntimePtr(), getHandle(), value);
         return this;
     }
@@ -427,7 +469,7 @@ public class V8Array extends V8Object {
      */
     public V8Array push(final boolean value) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.addArrayBooleanItem(v8.getV8RuntimePtr(), getHandle(), value);
         return this;
     }
@@ -442,7 +484,7 @@ public class V8Array extends V8Object {
      */
     public V8Array push(final double value) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.addArrayDoubleItem(v8.getV8RuntimePtr(), getHandle(), value);
         return this;
     }
@@ -457,7 +499,7 @@ public class V8Array extends V8Object {
      */
     public V8Array push(final String value) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         if (value == null) {
             v8.addArrayNullItem(v8.getV8RuntimePtr(), getHandle());
         } else if (value.equals(V8.getUndefined())) {
@@ -478,7 +520,7 @@ public class V8Array extends V8Object {
      */
     public V8Array push(final V8Value value) {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         if (value == null) {
             v8.addArrayNullItem(v8.getV8RuntimePtr(), getHandle());
         } else if (value.equals(V8.getUndefined())) {
@@ -493,13 +535,11 @@ public class V8Array extends V8Object {
      * Pushes null to the next available spot in the Array. In
      * particular, this[length] = null;
      *
-     * @param value The value to push to the array.
-     *
      * @return The receiver.
      */
     public V8Array pushNull() {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.addArrayNullItem(v8.getV8RuntimePtr(), getHandle());
         return this;
     }
@@ -508,13 +548,11 @@ public class V8Array extends V8Object {
      * Pushes undefined to the next available spot in the Array. In
      * particular, this[length] = undefined;
      *
-     * @param value The value to push to the array.
-     *
      * @return The receiver.
      */
     public V8Array pushUndefined() {
         v8.checkThread();
-        checkReleaesd();
+        checkReleased();
         v8.addArrayUndefinedItem(v8.getV8RuntimePtr(), getHandle());
         return this;
     }
@@ -865,6 +903,33 @@ public class V8Array extends V8Object {
          */
         @Override
         public boolean[] getBooleans(final int index, final int length) {
+            throw new UnsupportedOperationException();
+        }
+
+        /*
+         * (non-Javadoc)
+         * @see com.eclipsesource.v8.V8Array#getBytes(int, int)
+         */
+        @Override
+        public byte[] getBytes(final int index, final int length) {
+            throw new UnsupportedOperationException();
+        }
+
+        /*
+         * (non-Javadoc)
+         * @see com.eclipsesource.v8.V8Array#getBytes(int, int)
+         */
+        @Override
+        public int getBytes(final int index, final int length, final byte[] resultArray) {
+            throw new UnsupportedOperationException();
+        }
+
+        /*
+         * (non-Javadoc)
+         * @see com.eclipsesource.v8.V8Array#getByte(int)
+         */
+        @Override
+        public byte getByte(final int index) {
             throw new UnsupportedOperationException();
         }
 

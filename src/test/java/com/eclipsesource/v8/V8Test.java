@@ -15,6 +15,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.util.Arrays;
 import java.util.List;
@@ -39,7 +46,7 @@ public class V8Test {
         try {
             v8.release();
             if (V8.getActiveRuntimes() != 0) {
-                throw new IllegalStateException("V8Runtimes not properly released.");
+                throw new IllegalStateException("V8Runtimes not properly released");
             }
         } catch (IllegalStateException e) {
             System.out.println(e.getMessage());
@@ -47,8 +54,49 @@ public class V8Test {
     }
 
     @Test
+    public void testGetVersion() {
+        String v8version = V8.getV8Version();
+
+        assertNotNull(v8version);
+    }
+
+    @Test
+    public void testGetVersion_StartsWith4() {
+        String v8version = V8.getV8Version();
+
+        assertTrue(v8version.startsWith("4"));
+    }
+
+    @Test
     public void testV8Setup() {
         assertNotNull(v8);
+    }
+
+    @Test
+    public void testObjectReferenceZero() {
+        long objectReferenceCount = v8.getObjectReferenceCount();
+
+        assertEquals(0, objectReferenceCount);
+    }
+
+    @Test
+    public void testObjectReferenceCountOne() {
+        V8Object object = new V8Object(v8);
+
+        long objectReferenceCount = v8.getObjectReferenceCount();
+
+        assertEquals(1, objectReferenceCount);
+        object.release();
+    }
+
+    @Test
+    public void testObjectReferenceCountReleased() {
+        V8Object object = new V8Object(v8);
+        object.release();
+
+        long objectReferenceCount = v8.getObjectReferenceCount();
+
+        assertEquals(0, objectReferenceCount);
     }
 
     @Test(expected = Error.class)
@@ -84,7 +132,7 @@ public class V8Test {
                 try {
                     v8.executeVoidScript("");
                 } catch (Error e) {
-                    result[0] = e.getMessage().contains("Invalid V8 thread access.");
+                    result[0] = e.getMessage().contains("Invalid V8 thread access");
                 }
             }
         });
@@ -186,6 +234,18 @@ public class V8Test {
     @Test(expected = V8ScriptCompilationException.class)
     public void testSyntaxErrorInVoidScript() {
         v8.executeVoidScript("'a");
+    }
+
+    @Test
+    public void testSyntaxErrorMissingParam() {
+        try {
+            v8.executeScript("foo());");
+        } catch (V8ScriptCompilationException e) {
+            String string = e.toString();
+            assertNotNull(string);
+            return;
+        }
+        fail("Exception expected.");
     }
 
     @Test
@@ -1252,6 +1312,41 @@ public class V8Test {
         assertTrue(v8.executeBooleanScript("window.hasOwnProperty( \"Object\" )"));
     }
 
+    @Test
+    public void testExecuteUnicodeScript() {
+        String result = v8.executeStringScript("var ಠ_ಠ = function() { return '🌞' + '💐'; }; ಠ_ಠ();");
+
+        assertEquals("🌞💐", result);
+    }
+
+    @Test
+    public void testExecuteUnicodeFunction() {
+        v8.executeVoidScript("var ಠ_ಠ = function() { return '🌞' + '💐'; }; ");
+
+        assertEquals("🌞💐", v8.executeStringFunction("ಠ_ಠ", null));
+    }
+
+    @Test
+    public void testCompileErrowWithUnicode() {
+        try {
+            v8.executeVoidScript("🌞");
+        } catch (V8ScriptCompilationException e) {
+            assertTrue(e.toString().contains("🌞"));
+            return;
+        }
+
+        fail("Exception should have been thrown.");
+    }
+
+    @Test
+    public void testExecutionExceptionWithUnicode() {
+        try {
+            v8.executeVoidScript("throw('🌞')");
+        } catch (V8RuntimeException e) {
+            assertTrue(e.toString().contains("throw('🌞"));
+        }
+    }
+
     @Test(expected = V8ScriptCompilationException.class)
     public void testInvalidJSScript() {
         String script = "x = [1,2,3];\n"
@@ -1263,6 +1358,184 @@ public class V8Test {
                 + "}";
 
         v8.executeVoidScript(script, "example.js", 0);
+    }
+
+    @Test
+    public void testV8HandleCreated_V8Object() {
+        ReferenceHandler referenceHandler = mock(ReferenceHandler.class);
+        v8.addReferenceHandler(referenceHandler);
+
+        V8Object object = new V8Object(v8);
+
+        verify(referenceHandler, times(1)).v8HandleCreated(object);
+        object.release();
+    }
+
+    @Test
+    public void testV8HandleCreated_AccessedObject() {
+        ReferenceHandler referenceHandler = mock(ReferenceHandler.class);
+        v8.addReferenceHandler(referenceHandler);
+
+        V8Object object = v8.executeObjectScript("foo = {}; foo;");
+
+        verify(referenceHandler, times(1)).v8HandleCreated(object);
+        object.release();
+    }
+
+    @Test
+    public void testV8HandleCreated_AccessedArray() {
+        ReferenceHandler referenceHandler = mock(ReferenceHandler.class);
+        v8.addReferenceHandler(referenceHandler);
+
+        V8Array object = (V8Array) v8.executeScript("[1,2,3];");
+
+        verify(referenceHandler, times(1)).v8HandleCreated(object);
+        object.release();
+    }
+
+    @Test
+    public void testV8ReferenceHandleRemoved() {
+        ReferenceHandler referenceHandler = mock(ReferenceHandler.class);
+        v8.addReferenceHandler(referenceHandler);
+        v8.removeReferenceHandler(referenceHandler);
+
+        V8Object object = new V8Object(v8);
+
+        verify(referenceHandler, never()).v8HandleCreated(object);
+        object.release();
+    }
+
+    @Test
+    public void testV8UnknownReferenceHandleRemoved() {
+        ReferenceHandler referenceHandler1 = mock(ReferenceHandler.class);
+        ReferenceHandler referenceHandler2 = mock(ReferenceHandler.class);
+        v8.addReferenceHandler(referenceHandler1);
+        v8.removeReferenceHandler(referenceHandler2);
+
+        V8Object object = new V8Object(v8);
+
+        verify(referenceHandler1, times(1)).v8HandleCreated(object);
+        object.release();
+    }
+
+    @Test
+    public void testV8MultipleReferenceHandlers() {
+        ReferenceHandler referenceHandler1 = mock(ReferenceHandler.class);
+        ReferenceHandler referenceHandler2 = mock(ReferenceHandler.class);
+        v8.addReferenceHandler(referenceHandler1);
+        v8.addReferenceHandler(referenceHandler2);
+
+        V8Object object = new V8Object(v8);
+
+        verify(referenceHandler1, times(1)).v8HandleCreated(object);
+        verify(referenceHandler2, times(1)).v8HandleCreated(object);
+        object.release();
+    }
+
+    @Test
+    public void testV8HandleCreated_V8Array() {
+        ReferenceHandler referenceHandler = mock(ReferenceHandler.class);
+        v8.addReferenceHandler(referenceHandler);
+
+        V8Array object = new V8Array(v8);
+
+        verify(referenceHandler, times(1)).v8HandleCreated(object);
+        object.release();
+    }
+
+    @Test
+    public void testV8HandleCreated_V8Function() {
+        ReferenceHandler referenceHandler = mock(ReferenceHandler.class);
+        v8.addReferenceHandler(referenceHandler);
+
+        V8Function object = new V8Function(v8);
+
+        verify(referenceHandler, times(1)).v8HandleCreated(object);
+        object.release();
+    }
+
+    @Test
+    public void testV8HandleCreated_V8ArrayBuffer() {
+        ReferenceHandler referenceHandler = mock(ReferenceHandler.class);
+        v8.addReferenceHandler(referenceHandler);
+
+        V8ArrayBuffer object = new V8ArrayBuffer(v8, 100);
+
+        verify(referenceHandler, times(1)).v8HandleCreated(object);
+        object.release();
+    }
+
+    @Test
+    public void testV8HandleCreated_V8TypedArray() {
+        ReferenceHandler referenceHandler = mock(ReferenceHandler.class);
+        v8.addReferenceHandler(referenceHandler);
+
+        V8ArrayBuffer buffer = new V8ArrayBuffer(v8, 100);
+        V8TypedArray object = new V8TypedArray(v8, buffer, V8Value.INT_16_ARRAY, 0, 50);
+
+        verify(referenceHandler, times(1)).v8HandleCreated(buffer);
+        verify(referenceHandler, times(1)).v8HandleCreated(object);
+        buffer.release();
+        object.release();
+    }
+
+    @Test
+    public void testV8HandleDisposed() {
+        ReferenceHandler referenceHandler = mock(ReferenceHandler.class);
+        v8.addReferenceHandler(referenceHandler);
+
+        V8Object object = new V8Object(v8);
+        object.release();
+
+        verify(referenceHandler, times(1)).v8HandleDisposed(any(V8Object.class)); // Can't test the actual one because it's disposed
+    }
+
+    @Test
+    public void testV8ObjectHandlerExceptionDuringCreation() {
+        ReferenceHandler referenceHandler = mock(ReferenceHandler.class);
+        doThrow(new RuntimeException()).when(referenceHandler).v8HandleCreated(any(V8Object.class));
+        v8.addReferenceHandler(referenceHandler);
+
+        try {
+            new V8Object(v8);
+        } catch (Exception e) {
+            assertEquals(0, v8.getObjectReferenceCount());
+            return;
+        }
+
+        fail("Exception should have been caught.");
+    }
+
+    @Test
+    public void testV8ArrayHandlerExceptionDuringCreation() {
+        ReferenceHandler referenceHandler = mock(ReferenceHandler.class);
+        doThrow(new RuntimeException()).when(referenceHandler).v8HandleCreated(any(V8Object.class));
+        v8.addReferenceHandler(referenceHandler);
+
+        try {
+            new V8Array(v8);
+        } catch (Exception e) {
+            assertEquals(0, v8.getObjectReferenceCount());
+            return;
+        }
+
+        fail("Exception should have been caught.");
+    }
+
+    @Test
+    public void testV8ArrayBufferHandlerExceptionDuringCreation() {
+        ReferenceHandler referenceHandler = mock(ReferenceHandler.class);
+        doThrow(new RuntimeException()).when(referenceHandler).v8HandleCreated(any(V8Object.class));
+        v8.addReferenceHandler(referenceHandler);
+
+        try {
+            new V8ArrayBuffer(v8, 100);
+        } catch (Exception e) {
+            assertEquals(0, v8.getObjectReferenceCount());
+            return;
+        }
+
+        fail("Exception should have been caught.");
     }
 
 }
