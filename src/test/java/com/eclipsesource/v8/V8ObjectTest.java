@@ -1025,6 +1025,96 @@ public class V8ObjectTest {
         assertNull(v8.getString("nullString"));
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetTypeNull() {
+        V8Object v8Object = new V8Object(v8);
+        try {
+            v8Object.getType(null);
+        } finally {
+            v8Object.release();
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testContainsNull() {
+        V8Object v8Object = new V8Object(v8);
+        try {
+            v8Object.contains(null);
+        } finally {
+            v8Object.release();
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetNullKey() {
+        V8Object v8Object = new V8Object(v8);
+        try {
+            v8Object.get(null);
+        } finally {
+            v8Object.release();
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetNullKey_Integer() {
+        V8Object v8Object = new V8Object(v8);
+        try {
+            v8Object.getInteger(null);
+        } finally {
+            v8Object.release();
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetNullKey_String() {
+        V8Object v8Object = new V8Object(v8);
+        try {
+            v8Object.getString(null);
+        } finally {
+            v8Object.release();
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetNullKey_Double() {
+        V8Object v8Object = new V8Object(v8);
+        try {
+            v8Object.getDouble(null);
+        } finally {
+            v8Object.release();
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetNullKey_Boolean() {
+        V8Object v8Object = new V8Object(v8);
+        try {
+            v8Object.getBoolean(null);
+        } finally {
+            v8Object.release();
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetNullKey_Object() {
+        V8Object v8Object = new V8Object(v8);
+        try {
+            v8Object.getObject(null);
+        } finally {
+            v8Object.release();
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetNullKey_Array() {
+        V8Object v8Object = new V8Object(v8);
+        try {
+            v8Object.getArray(null);
+        } finally {
+            v8Object.release();
+        }
+    }
+
     @Test
     public void testStringScript() {
         assertNull(v8.executeStringScript("null;"));
@@ -1602,6 +1692,59 @@ public class V8ObjectTest {
         assertEquals("foo", v8Object.get("\uD83C\uDF89"));
 
         v8Object.release();
+    }
+
+    @Test
+    public void testGetType_V8Object() {
+        V8Object object = new V8Object(v8);
+
+        assertEquals(V8Value.V8_OBJECT, object.getV8Type());
+        object.release();
+    }
+
+    @Test
+    public void testGetType_V8Array() {
+        V8Array array = new V8Array(v8);
+
+        assertEquals(V8Value.V8_ARRAY, array.getV8Type());
+        array.release();
+    }
+
+    @Test
+    public void testGetType_V8Function() {
+        V8Function function = new V8Function(v8, mock(JavaCallback.class));
+
+        assertEquals(V8Value.V8_FUNCTION, function.getV8Type());
+        function.release();
+    }
+
+    @Test
+    public void testGetType_TypedArray() {
+        V8ArrayBuffer buffer = new V8ArrayBuffer(v8, 64);
+        V8Array array = new V8TypedArray(v8, buffer, V8Value.INT_8_ARRAY, 0, 8);
+
+        assertEquals(V8Value.V8_TYPED_ARRAY, array.getV8Type());
+        array.release();
+        buffer.release();
+    }
+
+    @Test
+    public void testGetType_Undefined() {
+        assertEquals(V8Value.UNDEFINED, V8.getUndefined().getV8Type());
+    }
+
+    @Test
+    public void testWeakReferenceReducesObjectCount() {
+        new V8Object(v8).setWeak();
+
+        assertEquals(0, v8.getObjectReferenceCount());
+    }
+
+    @Test
+    public void testSetWeakMakesObjectWeak() {
+        V8Value object = new V8Object(v8).setWeak();
+
+        assertTrue(object.isWeak());
     }
 
 }

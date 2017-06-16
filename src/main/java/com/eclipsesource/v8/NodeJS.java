@@ -29,9 +29,19 @@ public class NodeJS {
     private static final String STARTUP_CALLBACK    = "__run";
     private static final String STARTUP_SCRIPT      = "global." + STARTUP_CALLBACK + "(require, exports, module, __filename, __dirname);";
     private static final String STARTUP_SCRIPT_NAME = "startup";
+<<<<<<< Updated upstream
     private String              nodeVersion         = null;
     private static final String VERSIONS            = "versions";
     private static final String NODE                = "node";
+=======
+<<<<<<< HEAD
+    private String              nodeVersion         = "";
+=======
+    private static final String VERSIONS            = "versions";
+    private static final String NODE                = "node";
+    private String              nodeVersion         = null;
+>>>>>>> eclipsesource/master
+>>>>>>> Stashed changes
 
     private V8         v8;
     private V8Function require;
@@ -49,6 +59,23 @@ public class NodeJS {
     }
 
     /**
+<<<<<<< Updated upstream
+     * Returns the version of Node.js that is runtime is built against.
+     * This uses process.versions.node to get the version.
+=======
+<<<<<<< HEAD
+     * Returns version of Node
+>>>>>>> Stashed changes
+     *
+     * @return The version of Node.js.
+     */
+<<<<<<< Updated upstream
+    public String getNodeVersion() {
+        if (nodeVersion != null) {
+=======
+    public String nodeVersion() {
+        if (!nodeVersion.isEmpty()) {
+=======
      * Returns the version of Node.js that is runtime is built against.
      * This uses process.versions.node to get the version.
      *
@@ -56,14 +83,26 @@ public class NodeJS {
      */
     public String getNodeVersion() {
         if (nodeVersion != null) {
+>>>>>>> eclipsesource/master
+>>>>>>> Stashed changes
             return nodeVersion;
         }
         V8Object process = null;
         V8Object versions = null;
         try {
             process = v8.getObject(PROCESS);
+<<<<<<< Updated upstream
             versions = process.getObject(VERSIONS);
             nodeVersion = versions.getString(NODE);
+=======
+<<<<<<< HEAD
+            versions = process.getObject("versions");
+            nodeVersion = versions.getString("node");
+=======
+            versions = process.getObject(VERSIONS);
+            nodeVersion = versions.getString(NODE);
+>>>>>>> eclipsesource/master
+>>>>>>> Stashed changes
         } finally {
             safeRelease(process);
             safeRelease(versions);

@@ -23,6 +23,8 @@
   #include <node.h>
 #endif
 
+#define TAG "J2V8_V8Impl"
+
 #pragma comment(lib, "userenv.lib")
 #pragma comment(lib, "IPHLPAPI.lib")
 #pragma comment(lib, "Ws2_32.lib")
@@ -38,17 +40,25 @@ public:
   jlong v8RuntimePtr;
 };
 
+class WeakReferenceDescriptor {
+public:
+  jlong v8RuntimePtr;
+  jlong objectHandle;
+};
+
 class V8Runtime {
 public:
   Isolate* isolate;
   Isolate::Scope* isolate_scope;
   Persistent<Context> context_;
   Persistent<Object>* globalObject;
+  Locker* locker;
   jobject v8;
   jthrowable pendingException;
 
 #ifdef NODE_COMPATIBLE
   node::Environment* nodeEnvironment;
+  node::IsolateData* isolateData;
   uv_loop_t* uvLoop;
   bool running;
 #endif
@@ -88,6 +98,7 @@ jmethodID v8ArrayGetHandleMethodID = NULL;
 jmethodID v8CallVoidMethodID = NULL;
 jmethodID v8ObjectReleaseMethodID = NULL;
 jmethodID v8DisposeMethodID = NULL;
+jmethodID v8WeakReferenceReleased = NULL;
 jmethodID v8ArrayReleaseMethodID = NULL;
 jmethodID v8ObjectIsUndefinedMethodID = NULL;
 jmethodID v8ObjectGetHandleMethodID = NULL;
@@ -121,7 +132,6 @@ jobject getResult(JNIEnv *env, jobject &v8, jlong v8RuntimePtr, Handle<Value> &r
       return errorReturnResult;\
                                 }\
     V8Runtime* runtime = reinterpret_cast<V8Runtime*>(v8RuntimePtr);\
-    Locker locker(isolate);\
     Isolate::Scope isolateScope(isolate);\
     HandleScope handle_scope(isolate);\
     Local<Context> context = Local<Context>::New(isolate,runtime->context_);\
@@ -191,7 +201,11 @@ void addValueWithKey(JNIEnv* env, Isolate* isolate, jlong &v8RuntimePtr, jlong &
 void getJNIEnv(JNIEnv*& env) {
   int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
   if (getEnvStat == JNI_EDETACHED) {
+#ifdef __ANDROID_API__
+    if (jvm->AttachCurrentThread(&env, NULL) != 0) {
+#else
     if (jvm->AttachCurrentThread((void **)&env, NULL) != 0) {
+#endif
       std::cout << "Failed to attach" << std::endl;
     }
   }
@@ -269,6 +283,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     doubleDoubleValueMethodID = env->GetMethodID(doubleCls, "doubleValue", "()D");
     v8CallObjectJavaMethodMethodID = (env)->GetMethodID(v8cls, "callObjectJavaMethod", "(JLcom/eclipsesource/v8/V8Object;Lcom/eclipsesource/v8/V8Array;)Ljava/lang/Object;");
     v8DisposeMethodID = (env)->GetMethodID(v8cls, "disposeMethodID", "(J)V");
+    v8WeakReferenceReleased = (env)->GetMethodID(v8cls, "weakReferenceReleased", "(J)V");
     v8ScriptCompilationInitMethodID = env->GetMethodID(v8ScriptCompilationCls, "<init>", "(Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;II)V");
     v8ScriptExecutionExceptionInitMethodID = env->GetMethodID(v8ScriptExecutionException, "<init>", "(Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;IILjava/lang/String;Ljava/lang/Throwable;)V");
     undefinedV8ArrayInitMethodID = env->GetMethodID(undefinedV8ArrayCls, "<init>", "()V");
@@ -307,6 +322,8 @@ extern "C" {
 	void _register_fs(void);
 	void _register_http_parser(void);
 	void _register_os(void);
+	void _register_config(void);
+	void _register_url(void);
 	void _register_util(void);
 	void _register_v8(void);
 	void _register_zlib(void);
@@ -326,11 +343,11 @@ extern "C" {
 
 
 JNIEXPORT void JNICALL Java_com_eclipsesource_v8_V8__1startNodeJS
-  (JNIEnv * env, jclass, jlong v8RuntimePtr, jstring fileName) {
+  (JNIEnv * jniEnv, jclass, jlong v8RuntimePtr, jstring fileName) {
 #ifdef NODE_COMPATIBLE
-  Isolate* isolate = SETUP(env, v8RuntimePtr, );
+  Isolate* isolate = SETUP(jniEnv, v8RuntimePtr, );
   setvbuf(stderr, NULL, _IOLBF, 1024);
-  const char* utfFileName = env->GetStringUTFChars(fileName, NULL);
+  const char* utfFileName = jniEnv->GetStringUTFChars(fileName, NULL);
   const char *argv[] = {"j2v8", utfFileName, NULL};
   int argc = sizeof(argv) / sizeof(char*) - 1;
   V8Runtime* rt = reinterpret_cast<V8Runtime*>(v8RuntimePtr);
@@ -349,6 +366,8 @@ JNIEXPORT void JNICALL Java_com_eclipsesource_v8_V8__1startNodeJS
 	_register_fs();
 	_register_http_parser();
 	_register_os();
+	_register_config();
+	_register_url();
 	_register_util();
 	_register_v8();
 	_register_zlib();
@@ -365,16 +384,16 @@ JNIEXPORT void JNICALL Java_com_eclipsesource_v8_V8__1startNodeJS
 	_register_uv();
   #endif
   }
-  rt->uvLoop = new uv_loop_t();
-  uv_loop_init(rt->uvLoop);
-  isolate->GetCurrentContext();
-  node::Environment* environment = node::CreateEnvironment(isolate, rt->uvLoop, context, argc, argv, 0, 0);
-  node::LoadEnvironment(environment);
-  rt->nodeEnvironment = environment;
+  rt->uvLoop = uv_default_loop();
+  rt->isolateData = node::CreateIsolateData(isolate, rt->uvLoop);
+  node::Environment* env = node::CreateEnvironment(rt->isolateData, context, argc, argv, 0, 0);
+  node::LoadEnvironment(env);
+  rt->nodeEnvironment = env;
+
   rt->running = true;
 #endif
 #ifndef NODE_COMPATIBLE
-  (env)->ThrowNew(unsupportedOperationExceptionCls, "StartNodeJS Not Supported.");
+  (jniEnv)->ThrowNew(unsupportedOperationExceptionCls, "StartNodeJS Not Supported.");
 #endif
 }
 
@@ -424,7 +443,7 @@ JNIEXPORT jlong JNICALL Java_com_eclipsesource_v8_V8__1createIsolate
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = &array_buffer_allocator;
   runtime->isolate = v8::Isolate::New(create_params);
-  Locker locker(runtime->isolate);
+  runtime->locker = new Locker(runtime->isolate);
   runtime->isolate_scope = new Isolate::Scope(runtime->isolate);
   runtime->v8 = env->NewGlobalRef(v8);
   runtime->pendingException = NULL;
@@ -444,7 +463,27 @@ JNIEXPORT jlong JNICALL Java_com_eclipsesource_v8_V8__1createIsolate
     runtime->globalObject = new Persistent<Object>;
     runtime->globalObject->Reset(runtime->isolate, context->Global()->GetPrototype()->ToObject());
   }
+  delete(runtime->locker);
   return reinterpret_cast<jlong>(runtime);
+}
+
+JNIEXPORT void JNICALL Java_com_eclipsesource_v8_V8__1acquireLock
+  (JNIEnv *env, jobject, jlong v8RuntimePtr) {
+  V8Runtime* runtime = reinterpret_cast<V8Runtime*>(v8RuntimePtr);
+  runtime->locker = new Locker(runtime->isolate);
+}
+
+JNIEXPORT void JNICALL Java_com_eclipsesource_v8_V8__1releaseLock
+  (JNIEnv *env, jobject, jlong v8RuntimePtr) {
+  V8Runtime* runtime = reinterpret_cast<V8Runtime*>(v8RuntimePtr);
+  delete(runtime->locker);
+  runtime->locker = NULL;
+}
+
+JNIEXPORT void JNICALL Java_com_eclipsesource_v8_V8__1lowMemoryNotification
+  (JNIEnv *env, jobject, jlong v8RuntimePtr) {
+  V8Runtime* runtime = reinterpret_cast<V8Runtime*>(v8RuntimePtr);
+  runtime->isolate->LowMemoryNotification();
 }
 
 JNIEXPORT jlong JNICALL Java_com_eclipsesource_v8_V8__1initNewV8Object
@@ -1416,6 +1455,13 @@ JNIEXPORT jint JNICALL Java_com_eclipsesource_v8_V8__1getType__JJI
   return type;
 }
 
+JNIEXPORT jint JNICALL Java_com_eclipsesource_v8_V8__1getType__JJ
+  (JNIEnv *env, jobject, jlong v8RuntimePtr, jlong objectHandle) {
+  Isolate* isolate = SETUP(env, v8RuntimePtr, 0);
+  Handle<Value> v8Value = Local<Value>::New(isolate, *reinterpret_cast<Persistent<Value>*>(objectHandle));
+  return getType(v8Value);
+}
+
 JNIEXPORT jint JNICALL Java_com_eclipsesource_v8_V8__1getType__JJII
 (JNIEnv *env, jobject, jlong v8RuntimePtr, jlong arrayHandle, jint start, jint length) {
   Isolate* isolate = SETUP(env, v8RuntimePtr, 0);
@@ -1640,6 +1686,28 @@ JNIEXPORT jlongArray JNICALL Java_com_eclipsesource_v8_V8__1initNewV8Function
   fill[1] = md->methodID;
   (env)->SetLongArrayRegion(result, 0, 2, fill);
   return result;
+}
+
+JNIEXPORT void JNICALL Java_com_eclipsesource_v8_V8__1setWeak
+  (JNIEnv * env, jobject, jlong v8RuntimePtr, jlong objectHandle) {
+    Isolate* isolate = SETUP(env, v8RuntimePtr, );
+    WeakReferenceDescriptor* wrd = new WeakReferenceDescriptor();
+    wrd->v8RuntimePtr = v8RuntimePtr;
+    wrd->objectHandle = objectHandle;
+    reinterpret_cast<Persistent<Object>*>(objectHandle)->SetWeak(wrd, [](v8::WeakCallbackInfo<WeakReferenceDescriptor> const& data) {
+      WeakReferenceDescriptor* wrd = data.GetParameter();
+      JNIEnv * env;
+      getJNIEnv(env);
+      jobject v8 = reinterpret_cast<V8Runtime*>(wrd->v8RuntimePtr)->v8;
+      env->CallVoidMethod(v8, v8WeakReferenceReleased, wrd->objectHandle);
+      delete(wrd);
+    }, WeakCallbackType::kFinalizer);
+}
+
+JNIEXPORT jboolean JNICALL Java_com_eclipsesource_v8_V8__1isWeak
+  (JNIEnv * env, jobject, jlong v8RuntimePtr, jlong objectHandle) {
+    Isolate* isolate = SETUP(env, v8RuntimePtr, 0);
+    return reinterpret_cast<Persistent<Object>*>(objectHandle)->IsWeak();
 }
 
 JNIEXPORT jlong JNICALL Java_com_eclipsesource_v8_V8__1registerJavaMethod
@@ -1890,6 +1958,9 @@ jobject getResult(JNIEnv *env, jobject &v8, jlong v8RuntimePtr, Handle<Value> &r
   }
   else if (result->IsArrayBuffer()) {
     ArrayBuffer* arrayBuffer = ArrayBuffer::Cast(*result);
+    if ( arrayBuffer->GetContents().Data() == NULL ) {
+      return NULL;
+    }
     jobject byteBuffer = env->NewDirectByteBuffer(arrayBuffer->GetContents().Data(), arrayBuffer->ByteLength());
     jobject objectResult = env->NewObject(v8ArrayBufferCls, v8ArrayBufferInitMethodID, v8, byteBuffer);
     jlong resultHandle = getHandle(env, objectResult);

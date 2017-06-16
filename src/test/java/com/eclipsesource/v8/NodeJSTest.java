@@ -71,9 +71,15 @@ public class NodeJSTest {
 
     @Test
     public void testGetVersion() {
+<<<<<<< Updated upstream
         String result = nodeJS.getVersion();
 
         assertEquals("v6.1.0", result);
+=======
+        String result = nodeJS.getNodeVersion();
+
+        assertEquals("7.4.0", result);
+>>>>>>> Stashed changes
     }
 
     @Test
